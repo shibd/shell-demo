@@ -22,7 +22,7 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         if (message.includes('\r') || message.includes('\n')) { // Enter key
             console.log("user put all cmd: " + userInput);
-            const forbiddenCommand = forbiddenCommands.find(command => userInput.trim().includes(command));
+            const forbiddenCommand = forbiddenCommands.find(command => userInput.trim().startsWith(command));
             if (forbiddenCommand) {
                 userInput = '';
                 ws.send('\r\nError: The [' + forbiddenCommand + '] command is not allowed.\r\n');
