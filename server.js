@@ -7,6 +7,7 @@ const app = express();
 const wss = new WebSocket.Server({ noServer: true });
 
 let userInput = '';
+const PROMPT_LENGTH = '➜  ~ '.length;
 
 wss.on('connection', (ws) => {
     let echoShell = pty.spawn('zsh', ['-i'], {
@@ -32,7 +33,8 @@ wss.on('connection', (ws) => {
             if (userInput.trim() === 'delete') {
                 ws.send('\r\nError: The "delete" command is not allowed.\r\n');
             } else {
-                // ws.send('\u001b[2K\u001b[0G');
+                // 清理输入.
+                ws.send(`\u001b[0G\u001b[${PROMPT_LENGTH}C\u001b[K`);
                 execShell.write(userInput);
             }
             userInput = '';
@@ -41,6 +43,7 @@ wss.on('connection', (ws) => {
 
         echoShell.write(message); // 立即回显字符
     });
+
 
 
     echoShell.on('data', (data) => {
