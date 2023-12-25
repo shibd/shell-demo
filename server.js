@@ -20,6 +20,8 @@ wss.on('connection', (ws) => {
         cwd: process.env.HOME,
         env: process.env
     });
+    execShell.write('proxy\n');
+    execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
 
     ws.on('message', (message) => {
         userInput += message;
@@ -29,14 +31,15 @@ wss.on('connection', (ws) => {
         if (message.includes('\r')) { // 检测 Enter 键
             if (userInput.trim() === 'delete') {
                 ws.send('\r\nError: The "delete" command is not allowed.\r\n');
-                userInput = '';
             } else {
+                // ws.send('\u001b[2K\u001b[0G');
                 execShell.write(userInput);
-                userInput = '';
             }
-        } else {
-            echoShell.write(message); // 立即回显字符
+            userInput = '';
+            return;
         }
+
+        echoShell.write(message); // 立即回显字符
     });
 
 
