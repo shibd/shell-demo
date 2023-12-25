@@ -7,55 +7,54 @@ const app = express();
 const wss = new WebSocket.Server({ noServer: true });
 
 let userInput = '';
-const PROMPT_LENGTH = '➜  ~ '.length;
+let cursorPosition = 0;
+const forbiddenCommands = ['rm', 'delete', 'pulsar-client'];
 
 wss.on('connection', (ws) => {
-    let echoShell = pty.spawn('zsh', ['-i'], {
-        name: 'xterm-color',
-        cwd: process.env.HOME,
-        env: process.env
-    });
-
     let execShell = pty.spawn('zsh', ['-i'], {
         name: 'xterm-color',
         cwd: process.env.HOME,
         env: process.env
     });
-    execShell.write('proxy\n');
-    execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
+    // execShell.write('proxy\n');
+    // execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
 
     ws.on('message', (message) => {
-        userInput += message;
-
-        console.log(message + ':' + userInput)
-
-        if (message.includes('\r')) { // 检测 Enter 键
-            if (userInput.trim() === 'delete') {
-                ws.send('\r\nError: The "delete" command is not allowed.\r\n');
-            } else {
-                // 清理输入.
-                ws.send(`\u001b[0G\u001b[${PROMPT_LENGTH}C\u001b[K`);
-                execShell.write(userInput);
+        if (message.includes('\r') || message.includes('\n')) { // Enter key
+            console.log("user put all cmd: " + userInput);
+            const forbiddenCommand = forbiddenCommands.find(command => userInput.trim().includes(command));
+            if (forbiddenCommand) {
+                userInput = '';
+                ws.send('\r\nError: The [' + forbiddenCommand + '] command is not allowed.\r\n');
+                // Send Ctrl+C to the shell
+                execShell.write('\x03');
+                return;
             }
             userInput = '';
-            return;
+            cursorPosition = 0;
+        } else if (message.toString() === '\b' || message.toString() === '\x7f') { // Backspace or Delete key
+            if (cursorPosition > 0) { // Ensure cursor isn't at the start
+                userInput = userInput.slice(0, cursorPosition - 1) + userInput.slice(cursorPosition);
+                cursorPosition--;
+            }
+        } else if (message.toString() === '\x1bOD') { // Left arrow key
+            if (cursorPosition > 0) { // Ensure cursor isn't at the start
+                cursorPosition--;
+            }
+        } else if (message.toString() === '\x1bOC') { // Right arrow key
+            if (cursorPosition < userInput.length) { // Ensure cursor isn't at the end
+                cursorPosition++;
+            }
+        } else { // Normal character
+            userInput = userInput.slice(0, cursorPosition) + message + userInput.slice(cursorPosition);
+            cursorPosition++;
         }
-
-        echoShell.write(message); // 立即回显字符
-    });
-
-
-
-    echoShell.on('data', (data) => {
-        ws.send(data);
+        console.log("receive :" + message.toString() + ':' + userInput);
+        execShell.write(message);
     });
 
     execShell.on('data', (data) => {
         ws.send(data);
-    });
-
-    echoShell.on('exit', () => {
-        ws.close();
     });
 
     execShell.on('exit', () => {
