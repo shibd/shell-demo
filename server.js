@@ -1,54 +1,62 @@
-// server.js
 const express = require('express');
-const { spawn } = require('child_process');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
+const WebSocket = require('ws');
+const pty = require('node-pty');
+const os = require('os');
 
+// 初始化 Express 和 WebSocket 服务器
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+const wss = new WebSocket.Server({noServer: true});
 
-app.use(express.static(path.join(__dirname, 'public')));
+// 创建一个新的 pty
+const shell = os.platform() === 'win32' ? 'powershell.exe' : 'zsh';
+const ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 30,
+    cwd: process.env.HOME,
+    env: process.env
+});
 
-io.on('connection', (socket) => {
-    const shellPath = process.env.SHELL || '/bin/sh';
-    const env = Object.assign({}, process.env, { PATH: '/usr/local/bin:' + process.env.PATH });
-    const shell = spawn(shellPath, [], { env: env });
+// 在 pty 中执行代理命令和 apiserver-admin 命令
+ptyProcess.write('proxy\n');
+ptyProcess.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
 
-    let shellOutput = '';
-
-    shell.stdout.on('data', (data) => {
-        shellOutput += data.toString();
-    });
-
-    shell.stderr.on('data', (data) => {
-        shellOutput += data.toString();
-    });
-
-    shell.on('close', (code) => {
-        console.log(`child process exited with code ${code}`);
-    });
-
-    socket.on('command', (command) => {
-        shellOutput = '';
-        shell.stdin.write(`${command}\n`);
-        // Allow some time for the command to execute and output to be collected
-        setTimeout(() => {
-            if (shellOutput === '') {
-                socket.emit('output', 'Command execution timed out');
-            } else {
-                if (command === 'pwd') {
-                    socket.emit('pwd', shellOutput);
-                } else {
-                    socket.emit('output', shellOutput);
-                }
-            }
-        }, 100000);
-
+// 当 WebSocket 接收到消息时，将其写入 pty
+wss.on('connection', ws => {
+    ws.on('message', message => {
+        // 检查消息是否是一个字符串
+        let stringMessage;
+        if (typeof message !== 'string') {
+            stringMessage = message.toString();
+        }
+        // 检查是否为不允许的命令
+        if (stringMessage.trim().startsWith('kubectl delete')) {
+            ws.send('Error: kubectl delete command is not allowed.\n');
+        } else {
+            // 如果消息不能被解析为 JSON，将其作为一个普通的命令处理
+            ptyProcess.write(stringMessage + '\n');
+        }
     });
 });
 
-server.listen(3000, () => {
-    console.log('listening on *:3000');
+
+
+// 当 pty 接收到数据时，将其发送到所有 WebSocket 连接
+ptyProcess.on('data', data => {
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(data);
+        }
+    });
+});
+
+// 为静态文件提供服务
+app.use(express.static('public'));
+
+// 将 Express 和 WebSocket 服务器绑定到同一个端口
+const server = app.listen(3000, () => console.log('Listening on port 3000'));
+server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, ws => {
+        wss.emit('connection', ws, request);
+    });
 });

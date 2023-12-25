@@ -1,94 +1,11 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Shell Demo</title>
-    <style>
-        #terminal {
-            background-color: black;
-            color: white;
-            padding: 10px;
-            height: 60vh;
-            width: 80vw;
-            overflow: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            margin-bottom: 0;
-        }
-        #input-line {
-            display: flex;
-            align-items: center;
-            background-color: black;
-            padding: 10px;
-            width: 80vw;
-            margin: 0 auto;
-        }
-        #prompt {
-            color: lime;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-        }
-        #input {
-            color: lime;
-            background-color: black;
-            border: none;
-            outline: none;
-            flex-grow: 1;
-            margin-left: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            caret-color: white;
-            caret-width: 2px;
-        }
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #333;
-            flex-direction: column;
-        }
-    </style>
+    <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
 </head>
 <body>
 <div id="terminal"></div>
-<div id="input-line">
-    <div id="prompt">$ </div>
-    <input id="input" type="text" autofocus>
-</div>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-    var socket = io();
-    var terminal = document.getElementById('terminal');
-    var input = document.getElementById('input');
-    var prompt = document.getElementById('prompt');
-
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            var command = input.value;
-            input.value = '';
-            terminal.innerHTML += '<span style="color: lime;">' + prompt.textContent + command + '</span><br>';
-            socket.emit('command', command);
-            if (command.startsWith('cd ')) {
-                // If the command is a 'cd' command, update the current directory
-                socket.emit('command', 'pwd');
-            }
-        }
-    });
-
-    socket.on('output', function(output) {
-        terminal.innerHTML += output.replace(/\n/g, '<br>') + '<br>';
-        terminal.scrollTop = terminal.scrollHeight;
-    });
-
-    // Update the prompt with the current directory when the page loads
-    socket.emit('command', 'pwd');
-
-    // Listen for the output of the 'pwd' command and update the prompt
-    socket.on('pwd', function(output) {
-        prompt.textContent = '$ ' + output.trim() + ' > ';
-    });
-</script>
+<script src="https://unpkg.com/xterm/lib/xterm.js"></script>
+<script src="main.js"></script>
 </body>
 </html>
