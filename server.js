@@ -8,7 +8,7 @@ const wss = new WebSocket.Server({ noServer: true });
 
 let userInput = '';
 let cursorPosition = 0;
-const forbiddenCommands = ['rm', 'delete', 'pulsar-client'];
+const forbiddenCommands = ['rm', 'delete', 'pulsar-client', 'vim'];
 
 wss.on('connection', (ws) => {
     let execShell = pty.spawn('zsh', ['-i'], {
