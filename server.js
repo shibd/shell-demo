@@ -16,8 +16,8 @@ wss.on('connection', (ws) => {
         cwd: process.env.HOME,
         env: process.env
     });
-    execShell.write('proxy\n');
-    execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
+    // execShell.write('proxy\n');
+    // execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
     // execShell.write('kubectl exec -ti test-io-broker-1 /bin/bash -n o-5om91\n');
 
     ws.on('message', (message) => {
