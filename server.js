@@ -16,22 +16,25 @@ wss.on('connection', (ws) => {
         cwd: process.env.HOME,
         env: process.env
     });
-    // execShell.write('proxy\n');
-    // execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
+    execShell.write('proxy\n');
+    execShell.write('apiserver-admin pools connect aws-use2-dixie-snc -n streamnative\n');
+    // execShell.write('kubectl exec -ti test-io-broker-1 /bin/bash -n o-5om91\n');
 
     ws.on('message', (message) => {
         if (message.includes('\r') || message.includes('\n')) { // Enter key
             console.log("user put all cmd: " + userInput);
-            const forbiddenCommand = forbiddenCommands.find(command => userInput.trim().startsWith(command));
+            const firstCommand = userInput.trim().split(' ')[0];
+            const forbiddenCommand = forbiddenCommands.find(command => firstCommand.includes(command));
             if (forbiddenCommand) {
                 userInput = '';
                 ws.send('\r\nError: The [' + forbiddenCommand + '] command is not allowed.\r\n');
-                // Send Ctrl+C to the shell
+                // Send Ctrl+C to the shell to cancel execution.
                 execShell.write('\x03');
                 return;
             }
             userInput = '';
             cursorPosition = 0;
+        // TODO compatibility of different platforms needs to be dealt with.
         } else if (message.toString() === '\b' || message.toString() === '\x7f') { // Backspace or Delete key
             if (cursorPosition > 0) { // Ensure cursor isn't at the start
                 userInput = userInput.slice(0, cursorPosition - 1) + userInput.slice(cursorPosition);
